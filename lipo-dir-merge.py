@@ -27,21 +27,26 @@ primary_path = sys.argv[1]
 secondary_path = sys.argv[2]
 # This is where we copy stuff to
 destination_path = sys.argv[3]
+# Support overriding the lipo command
+lipo_cmd = "lipo"
+if len(sys.argv) > 4:
+    lipo_cmd = sys.argv[4]
 
 
 # Merge the libraries at `src1` and `src2` and create a
 # universal binary at `dst`
 def merge_libs(src1, src2, dst):
-    subprocess.run(["lipo", "-create", src1, src2, "-output", dst])
+    subprocess.run([lipo_cmd, "-create", src1, src2, "-output", dst])
 
 # Find the library at `src` in the `secondary_path` and then
 # merge the two versions, creating a universal binary at `dst`.
-def find_and_merge_libs(src, dst):
+def find_and_merge_libs(src, dst, follow_symlinks=True):
     rel_path = os.path.relpath(src, primary_path)
     lib_in_secondary = os.path.join(secondary_path, rel_path)
 
     if os.path.exists(lib_in_secondary) == False:
-        print("Lib not found in secondary source: {lib_in_secondary}")
+        print(f"Lib not found in secondary source: {lib_in_secondary}")
+        shutil.copy2(src, dst, follow_symlinks=follow_symlinks)
         return
     
     merge_libs(src, lib_in_secondary, dst)
@@ -58,4 +63,4 @@ def copy_file_or_merge_libs(src, dst, *, follow_symlinks=True):
 
 # Use copytree to do most of the work, with our own `copy_function` doing a little bit
 # of magic in case of static libraries.
-shutil.copytree(primary_path, destination_path, copy_function=copy_file_or_merge_libs)
+shutil.copytree(primary_path, destination_path, copy_function=copy_file_or_merge_libs, dirs_exist_ok = True)
